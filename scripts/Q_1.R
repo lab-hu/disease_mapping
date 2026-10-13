@@ -1,23 +1,35 @@
-# load required libraries
+###########################################################################################################
+###############                   Spatial Epidemiology GROUP 4       ######################################
+###########################################################################################################
+
+## Question 1
+
+# Install necessary packages
+install.packages("sp")
+install.packages("sf")
+install.packages("dplyr")
+install.packages("tmap")
+
+# Load required libraries
 library(sp)
 library(tmap)
 library(sf)
 library(dplyr)
 library(readxl)
 
-#Read in data.xlsx
+# Read in data.xlsx
 data <- read_excel("data/data.xlsx")
 head(data)
 
-#Read in shape file
+# Read in shape file
 municipality.shp <- st_read("data/gemeenten_304_2025.shp")
 head(municipality.shp)
 
-#Filter data for age under 45
+# Filter data for age under 45
 data_under25 <- data %>% filter(age %in% c("0-24","25-44") )
 head(data_under25)
 
-#Indirect Standardization
+# Indirect Standardization
 #rate_g = y_gs/n_gs
 rate <- data_under25 %>%
   group_by(age) %>% 
@@ -60,7 +72,7 @@ tm_shape(map) +
       position = tm_pos_out(cell.h = "right", cell.v = "center") # Places legend outside on the right
     ))
 
-#Map of SMR of diabetics for chronic condition
+# Map of SMR of diabetics for chronic condition
 tm_shape(map) + 
   tm_polygons(
     fill = "SMR_c", 
@@ -74,28 +86,26 @@ tm_shape(map) +
 
 ### Variance of SMR
 
-## add standard error
+## Add standard error
 map$se_SMR_d <- sqrt(map$Y_d)/map$E_d
 map$se_SMR_c <- sqrt(map$Y_c)/map$E_c
 head(map)
 map_sf <- st_as_sf(map)
 
-#map of se_SMR for diabetics
+# Map of SE_SMR for diabetics
 tm_shape(map_sf) +
   tm_polygons(fill=c("SMR_d","se_SMR_d"), fill.scale  = tm_scale(values = "-brewer.rd_yl_gn"))
 
-#map of se_SMR for chronic disease
+# Map of SE_SMR for chronic disease
 tm_shape(map_sf) +
   tm_polygons(fill=c("SMR_c","se_SMR_c"), fill.scale  = tm_scale(values = "-brewer.rd_yl_gn"))
 
-###Not sure if we need to do the following part
 #### CI of SMR
-# Add CI
-#CI for diabetics
+# CI for diabetics
 errfact_d<-exp(1.96*sqrt(1/map$Y_d)) 
 map$LL_d <- map$SMR_d/errfact_d
 map$UL_d <- map$SMR_d*errfact_d
-#CI for chronic condition
+# CI for chronic condition
 errfact_c<-exp(1.96*sqrt(1/map$Y_c)) 
 map$LL_c <- map$SMR_c/errfact_c
 map$UL_c <- map$SMR_c*errfact_c
