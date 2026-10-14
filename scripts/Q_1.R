@@ -9,29 +9,38 @@ library(readxl)
 data <- read_excel("data/data.xlsx")
 head(data)
 
+# Check column names
+names(data)
+
+# Check missing values per column
+colSums(is.na(data))
+
+# Check age labels
+unique(data$age)
+
 #Read in shape file
 municipality.shp <- st_read("data/gemeenten_304_2025.shp")
 head(municipality.shp)
 
 #Filter data for age under 45
-data_under25 <- data %>% filter(age %in% c("0-24","25-44") )
-head(data_under25)
+dat <- data %>% filter(age %in% c("0-24","25-44") )
+head(dat)
 
 #Indirect Standardization
 #rate_g = y_gs/n_gs
-rate <- data_under25 %>%
+rate <- dat %>%
   group_by(age) %>% 
   summarise(Y_d = sum(diabetics), Y_c = sum(chronical_condition), N= sum(beneficaries)) %>%
   mutate(rate_d = Y_d/N, rate_c = Y_c/N)
 head(rate)
 
 # E_i = rate_gs * n_gi
-data_under25 <- left_join(data_under25,rate,by ="age") %>%
+dat <- left_join(data_under25,rate,by ="age") %>%
   mutate(Ei_d = rate_d * beneficaries,Ei_c = rate_c *beneficaries)
-head(data_under25)
+head(dat)
 
 # SMR = sum(y_gi)/sum(E_gi)
-result <- data_under25 %>% group_by(municipality) %>% 
+result <- dat %>% group_by(municipality) %>% 
   summarize(Y_d = sum(diabetics),Y_c = sum(chronical_condition),E_d=sum(Ei_d),E_c = sum(Ei_c)) %>%
   mutate(SMR_d=Y_d/E_d, SMR_c = Y_c/ E_c ) 
 head(result)
@@ -41,14 +50,13 @@ map <- left_join(municipality.shp,result,by= c("NAAM" = "municipality"))
 map_sf <- st_as_sf(map)
 
 # Map of SMR of diabetics 
-# lecture code (v3? this code does not work well for me for some reason)
 tm_shape(map) + 
   tm_polygons(fill=c("SMR_d"), 
               fill.scale  = tm_scale(values = "-brewer.rd_yl_gn"),
               fill.legend = tm_legend(title = "SMR")) +
   tm_layout(legend.outside = T,legend.outside.position="bottom") 
 
-#v4 code
+#v4 code - i'd delete this
 tm_shape(map) + 
   tm_polygons(
     fill = "SMR_d", 
@@ -60,7 +68,14 @@ tm_shape(map) +
       position = tm_pos_out(cell.h = "right", cell.v = "center") # Places legend outside on the right
     ))
 
-#Map of SMR of diabetics for chronic condition
+# Map of SMR for chronic condition
+tm_shape(map) + 
+  tm_polygons(fill=c("SMR_c"), 
+              fill.scale  = tm_scale(values = "-brewer.rd_yl_gn"),
+              fill.legend = tm_legend(title = "SMR")) +
+  tm_layout(legend.outside = T,legend.outside.position="bottom") 
+
+#optional
 tm_shape(map) + 
   tm_polygons(
     fill = "SMR_c", 
@@ -133,7 +148,7 @@ tm_shape(map_sf) +
   tm_polygons(fill=c("risk_c"),fill.scale  = tm_scale(values = c("white", "grey")),
               fill.legend = tm_legend(title = "Risk Area"))
 
-# Catterpillar plot
+# Catterpillar plot - i'd keep this, not sure ab the others, i would ask the others
 library(ggplot2)
 # diabetics
 ggplot(data=table_d,aes(x=reorder(NAAM,SMR_d), y=SMR_d, colour = SMR_d)) +
